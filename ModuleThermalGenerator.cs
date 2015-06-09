@@ -20,27 +20,30 @@ namespace ModuleThermalGenerator
 		double thermalOutput = 1;
 
 		[KSPField]
-		bool isRequired = false;
+		bool scaleByGeneratorEfficiency = false;
 
 		[KSPField]
-		double scaleEfficiency = 1;
+		double finalFluxScalar = 1;
 
 		[KSPField]
 		bool haltOnDeprived = false;
+
+		private float origResourceThreshold;
 
 		public ModuleThermalGenerator ()
 		{
 		}
 
-		//public void Start()
-		//{
-		//}
+		public void Start()
+		{
+			origResourceThreshold = resourceThreshold;
+		}
 
 		public new void FixedUpdate()
 		{
 			double scalar = 1.0;
 
-			if (this.generatorIsActive && haltOnDeprived && requiresAllInputs)
+			if (generatorIsActive && haltOnDeprived && requiresAllInputs)
 			{
 				generatorIsActive = isAlwaysActive;
 				foreach (GeneratorResource input in this.inputList)
@@ -54,18 +57,20 @@ namespace ModuleThermalGenerator
 				if (thermalOutput < 0.0 && (TotalFlux () / Math.Abs(thermalOutput)) < resourceThreshold)
 					this.generatorIsActive = false;
 			}
+			if (requiresAllInputs && (TotalFlux () / Math.Abs(thermalOutput)) < origResourceThreshold)
+			{
+				resourceThreshold = int.MaxValue;
+			}
+			else if (resourceThreshold == int.MaxValue)
+				resourceThreshold = origResourceThreshold;
 
-			if (isRequired)
+			if (scaleByGeneratorEfficiency)
 			{
 				if (thermalOutput > 0.0)
 					scalar *= this.efficiency;
-				if (thermalOutput < 0.0)
-				{
-					scalar *= TotalFlux () / Math.Abs (thermalOutput);
-				}
 			}
 
-			part.AddThermalFlux (thermalOutput * scaleEfficiency * scalar * TimeWarp.fixedDeltaTime);
+			part.AddThermalFlux (thermalOutput * finalFluxScalar * scalar * TimeWarp.fixedDeltaTime);
 			base.FixedUpdate ();
 		}
 
